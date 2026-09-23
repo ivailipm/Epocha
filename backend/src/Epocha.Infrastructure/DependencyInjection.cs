@@ -1,4 +1,7 @@
+using Epocha.Application.Abstractions;
+using Epocha.Application.Ingestion;
 using Epocha.Infrastructure.Persistence;
+using Epocha.Infrastructure.Sources.ArticApi;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,6 +29,20 @@ public static class DependencyInjection
         // another request's.
         services.AddDbContext<EpochaDbContext>(options =>
             options.UseNpgsql(connectionString));
+
+        // Application code asks for IEpochaDbContext; hand it the same scoped
+        // EpochaDbContext instance so both names share one set of tracked changes.
+        services.AddScoped<IEpochaDbContext>(sp => sp.GetRequiredService<EpochaDbContext>());
+
+        // AddHttpClient<TInterface, TImplementation> registers the museum client and
+        // gives it a pre-configured, connection-pooled HttpClient.
+        services.AddHttpClient<IArtworkSource, ArticArtworkSource>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.artic.edu/api/v1/");
+            // Polite to identify yourself to a public API.
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Epocha/1.0 (portfolio project)");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
 
         return services;
     }

@@ -1,3 +1,4 @@
+using Epocha.Application.Abstractions;
 using Epocha.Domain.Common;
 using Epocha.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +17,7 @@ namespace Epocha.Infrastructure.Persistence;
 /// <see cref="OnModelCreating"/>, which keeps this class from becoming a giant file of
 /// Fluent API calls as more entities are added.
 /// </remarks>
-public class EpochaDbContext(DbContextOptions<EpochaDbContext> options) : DbContext(options)
+public class EpochaDbContext(DbContextOptions<EpochaDbContext> options) : DbContext(options), IEpochaDbContext
 {
     public DbSet<Artwork> Artworks => Set<Artwork>();
     public DbSet<Artist> Artists => Set<Artist>();
