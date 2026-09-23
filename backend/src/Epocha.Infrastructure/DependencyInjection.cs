@@ -38,6 +38,7 @@ public static class DependencyInjection
         // The client is thread-safe and pools connections, so one instance serves the whole app.
         services.AddSingleton(new ElasticsearchClient(new Uri(elasticUrl)));
         services.AddScoped<IArtworkSearchIndexer, ElasticArtworkSearchIndexer>();
+        services.AddScoped<IArtworkSearcher, ElasticArtworkSearcher>();
 
         return services;
     }

@@ -1,6 +1,17 @@
 @Epocha.Api_HostAddress = http://localhost:5196
 
-GET {{Epocha.Api_HostAddress}}/weatherforecast/
+### Browse everything (first page)
+GET {{Epocha.Api_HostAddress}}/api/artworks/search
 Accept: application/json
 
-###
+### Full-text search
+GET {{Epocha.Api_HostAddress}}/api/artworks/search?q=landscape
+Accept: application/json
+
+### Filter by era and medium (repeat a parameter to select several values)
+GET {{Epocha.Api_HostAddress}}/api/artworks/search?era=Baroque&era=Modern&medium=Painting
+Accept: application/json
+
+### Start-year range, sorted by date, second page
+GET {{Epocha.Api_HostAddress}}/api/artworks/search?yearFrom=1850&yearTo=1900&sort=DateAsc&page=2&pageSize=12
+Accept: application/json

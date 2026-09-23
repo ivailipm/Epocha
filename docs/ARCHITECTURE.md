@@ -39,6 +39,22 @@ provider-specific EF code.
 3. Artworks that are new or changed are projected to `ArtworkSearchDocument` and bulk-indexed into Elasticsearch.
 4. A backlog pass indexes anything in Postgres that is missing from or stale in the index.
 
+## Search API
+
+`GET /api/artworks/search` queries Elasticsearch and returns a page of results plus facet counts.
+
+| Parameter | Meaning |
+| --- | --- |
+| `q` | Full-text query (title, artist, movement, description, medium), typo-tolerant |
+| `era`, `medium`, `movement`, `artist` | Filters; repeat a parameter to select several (OR within a facet, AND across facets) |
+| `yearFrom`, `yearTo` | Inclusive range on the artwork's start year (negative is BC) |
+| `sort` | `Relevance` (default), `DateAsc`, `DateDesc`, `TitleAsc`, `TitleDesc` |
+| `page`, `pageSize` | Paging; page size is capped at 100 and results at the first 10,000 |
+
+Facet counts for each facet are computed with that facet's own filter removed, so selecting
+"Baroque" still shows how many artworks each other era would return. Invalid input returns a
+400 problem-details response.
+
 ## Design decisions
 
 - **Idempotent ingestion.** Rows are matched on `(SourceSystem, SourceExternalId)`, which has a unique index, so re-running the job never duplicates data.
@@ -61,6 +77,6 @@ dotnet run        # set DOTNET_ENVIRONMENT=Development
 
 ## Status
 
-Done: domain model, persistence and migrations, ingestion into Postgres and Elasticsearch.
-Next: search endpoint (filters, facets, pagination, sorting), detail endpoint, React frontend,
-then containerising the API and frontend.
+Done: domain model, persistence and migrations, ingestion into Postgres and Elasticsearch,
+search endpoint (filters, facets, sorting, paging).
+Next: detail endpoint (Postgres), React frontend, then containerising the API and frontend.
