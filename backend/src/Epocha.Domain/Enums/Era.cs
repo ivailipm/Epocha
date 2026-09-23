@@ -1,14 +1,10 @@
 namespace Epocha.Domain.Enums;
 
 /// <summary>
-/// Coarse historical period, derived from an artwork's start year during ingestion.
+/// Coarse historical period derived from an artwork's start year (see <see cref="Common.EraCalculator"/>).
+/// Stored rather than computed at query time so Postgres and Elasticsearch always agree.
+/// The boundaries are conventional Western art-history ones.
 /// </summary>
-/// <remarks>
-/// Era is stored rather than computed at query time so that Postgres and Elasticsearch
-/// always agree on it, and so the search index can facet on it without recomputation.
-/// The boundaries are deliberately conventional Western-art-history ones; see
-/// <see cref="EraCalculator"/> for the mapping and its limitations.
-/// </remarks>
 public enum Era
 {
     Unknown = 0,

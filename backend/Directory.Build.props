@@ -1,21 +1,10 @@
 <Project>
-  <!--
-    Directory.Build.props is picked up automatically by MSBuild for every project
-    at or below this folder. It's the .NET way to avoid repeating the same
-    <PropertyGroup> in six different .csproj files.
-  -->
+  <!-- Shared settings for every project under backend/. -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
-
-    <!-- Nullable reference types: the compiler tracks which references can be null.
-         Catches a whole class of NullReferenceException bugs at build time. -->
     <Nullable>enable</Nullable>
-
-    <!-- Common namespaces (System, System.Linq, ...) are imported automatically. -->
     <ImplicitUsings>enable</ImplicitUsings>
-
-    <!-- Warnings become errors in CI. Keeps the build honest as the project grows. -->
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>

@@ -1,5 +1,6 @@
 using System.Globalization;
 using Epocha.Application.Abstractions;
+using Epocha.Application.Search;
 using Epocha.Domain.Common;
 using Epocha.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -7,40 +8,34 @@ using Microsoft.Extensions.Logging;
 
 namespace Epocha.Application.Ingestion;
 
-/// <param name="Created">Rows that did not exist before and were inserted.</param>
-/// <param name="Matched">Rows that already existed; EF only writes them if a value actually changed.</param>
-public record UpsertResult(int Created, int Matched);
+/// <param name="Created">Rows inserted.</param>
+/// <param name="Matched">Rows that already existed; EF only writes them if a value changed.</param>
+/// <param name="Indexed">Artworks written to Elasticsearch in this call.</param>
+public record UpsertResult(int Created, int Matched, int Indexed);
 
 /// <summary>
-/// Takes one page of museum-neutral <see cref="ArtworkRecord"/>s and writes them to
-/// Postgres as an "upsert": insert what's new, update what already exists. That's what
-/// makes the ingestion job idempotent — running it twice does not create duplicates,
-/// because rows are matched on (SourceSystem, SourceExternalId), the same pair that has
-/// a unique index in the database.
+/// Upserts a page of <see cref="ArtworkRecord"/>s into Postgres, then indexes them into
+/// Elasticsearch. Rows are matched on (SourceSystem, SourceExternalId), the same pair that has
+/// a unique index, so re-running ingestion never creates duplicates.
 /// </summary>
-/// <remarks>
-/// The constructor takes its dependencies as parameters ("primary constructor"): the DI
-/// container sees the parameter types and supplies matching services automatically.
-/// This is constructor injection, the standard way .NET code gets its collaborators.
-/// </remarks>
-public class ArtworkIngestionService(IEpochaDbContext db, ILogger<ArtworkIngestionService> logger)
+public class ArtworkIngestionService(
+    IEpochaDbContext db,
+    IArtworkSearchIndexer indexer,
+    ILogger<ArtworkIngestionService> logger)
 {
     public async Task<UpsertResult> UpsertAsync(IReadOnlyList<ArtworkRecord> records, CancellationToken cancellationToken)
     {
         if (records.Count == 0)
         {
-            return new UpsertResult(0, 0);
+            return new UpsertResult(0, 0, 0);
         }
 
-        // A page comes from a single museum, so one source value covers the whole batch.
+        // A page comes from a single museum.
         var source = records[0].SourceSystem;
 
-        // Strategy: load everything this page touches in a handful of queries (rather
-        // than one query per artwork), build in-memory dictionaries, then do all the
-        // inserts/updates and save ONCE. Query count per page stays constant no matter
-        // how many artworks the page holds — avoiding the classic "N+1 queries" problem.
+        // Load everything the page touches in a few queries, work in memory, save once.
+        // Query count stays constant regardless of page size (no N+1).
 
-        // ---- Artists --------------------------------------------------------
         var artistIds = records
             .Where(r => r.Artist is not null)
             .Select(r => r.Artist!.ExternalId)
@@ -70,8 +65,7 @@ public class ArtworkIngestionService(IEpochaDbContext db, ILogger<ArtworkIngesti
             }
         }
 
-        // ---- Movements ------------------------------------------------------
-        // Deduplicated by slug, so "Impressionism" and "impressionism" are one row.
+        // Movements are deduplicated by slug, so "Impressionism" and "impressionism" are one row.
         var movementNamesBySlug = records
             .SelectMany(r => r.Movements)
             .GroupBy(Slug.From)
@@ -93,11 +87,8 @@ public class ArtworkIngestionService(IEpochaDbContext db, ILogger<ArtworkIngesti
             }
         }
 
-        // ---- Artworks -------------------------------------------------------
         var externalIds = records.Select(r => r.ExternalId).Distinct().ToList();
 
-        // Include() tells EF to also load each artwork's Movements in the same query;
-        // lazy loading is off, so related data is only present if you ask for it.
         var artworks = await db.Artworks
             .Include(a => a.Movements)
             .Where(a => a.SourceSystem == source && externalIds.Contains(a.SourceExternalId))
@@ -121,8 +112,8 @@ public class ArtworkIngestionService(IEpochaDbContext db, ILogger<ArtworkIngesti
                     Title = record.Title
                 };
                 db.Artworks.Add(artwork);
-                // Also track it in the dictionary so a duplicate id later in the same
-                // page updates this instance instead of violating the unique index.
+                // Tracked here too, so a duplicate id later in the same page updates this
+                // instance instead of violating the unique index.
                 artworks[record.ExternalId] = artwork;
                 created++;
             }
@@ -130,12 +121,94 @@ public class ArtworkIngestionService(IEpochaDbContext db, ILogger<ArtworkIngesti
             Apply(record, artwork, artists, movements);
         }
 
-        // One SaveChanges = one database transaction: the whole page is written
-        // atomically, or (on error) not at all.
+        // One SaveChanges is one transaction: the page is written atomically.
         await db.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Upserted page: {Created} new, {Matched} already existed", created, matched);
-        return new UpsertResult(created, matched);
+        // Postgres is committed by now and stays the source of truth even if indexing fails.
+        var indexed = await IndexPendingAsync(artworks.Values, cancellationToken);
+
+        logger.LogInformation(
+            "Upserted page: {Created} new, {Matched} already existed, {Indexed} indexed",
+            created, matched, indexed);
+        return new UpsertResult(created, matched, indexed);
+    }
+
+    /// <summary>
+    /// Indexes every artwork in Postgres that is missing from or stale in Elasticsearch,
+    /// whether or not the current run fetched it. Keeps the two stores converging after an
+    /// Elasticsearch outage or when the museum's listing order shifts between runs.
+    /// </summary>
+    public async Task<int> IndexBacklogAsync(int batchSize, CancellationToken cancellationToken)
+    {
+        var total = 0;
+
+        while (true)
+        {
+            var batch = await db.Artworks
+                .AsNoTracking()
+                .Include(a => a.Artist)
+                .Include(a => a.Movements)
+                .Where(a => a.LastIndexedAt == null || a.UpdatedAt > a.LastIndexedAt)
+                .OrderBy(a => a.Id)
+                .Take(batchSize)
+                .ToListAsync(cancellationToken);
+
+            if (batch.Count == 0)
+            {
+                return total;
+            }
+
+            var indexed = await IndexPendingAsync(batch, cancellationToken);
+            total += indexed;
+
+            // Nothing succeeded (e.g. Elasticsearch is down): stop rather than loop forever.
+            if (indexed == 0)
+            {
+                return total;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Indexes artworks that are new or changed since they were last indexed and records
+    /// LastIndexedAt for those that succeeded. Failures are logged, not thrown; the rows stay
+    /// pending and are retried on the next run.
+    /// </summary>
+    private async Task<int> IndexPendingAsync(IEnumerable<Artwork> artworks, CancellationToken cancellationToken)
+    {
+        var pending = artworks
+            .Where(a => a.LastIndexedAt is null || a.UpdatedAt > a.LastIndexedAt)
+            .ToList();
+
+        if (pending.Count == 0)
+        {
+            return 0;
+        }
+
+        try
+        {
+            var documents = pending.Select(ArtworkSearchDocument.From).ToList();
+            var indexedIds = (await indexer.IndexAsync(documents, cancellationToken)).ToList();
+
+            if (indexedIds.Count == 0)
+            {
+                return 0;
+            }
+
+            // ExecuteUpdate bypasses SaveChanges on purpose: SaveChanges would also bump
+            // UpdatedAt, making every artwork look changed since it was indexed.
+            var now = DateTimeOffset.UtcNow;
+            await db.Artworks
+                .Where(a => indexedIds.Contains(a.Id))
+                .ExecuteUpdateAsync(s => s.SetProperty(a => a.LastIndexedAt, now), cancellationToken);
+
+            return indexedIds.Count;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Elasticsearch indexing failed for {Count} artworks; they will be retried next run", pending.Count);
+            return 0;
+        }
     }
 
     private static void Apply(
@@ -158,8 +231,6 @@ public class ArtworkIngestionService(IEpochaDbContext db, ILogger<ArtworkIngesti
         artwork.ThumbnailUrl = record.ThumbnailUrl;
         artwork.IsPublicDomain = record.IsPublicDomain;
 
-        // Derived fields: computed here, once, and stored. Postgres and (later)
-        // Elasticsearch therefore always agree on them.
         artwork.MediumCategory = MediumClassifier.Classify(record.MediumDisplay, record.Classification);
         artwork.Era = EraCalculator.FromYear(record.DateStartYear);
 
@@ -173,13 +244,15 @@ public class ArtworkIngestionService(IEpochaDbContext db, ILogger<ArtworkIngesti
             artwork.Artist = artists[record.Artist.ExternalId];
         }
 
-        // Only touch the many-to-many collection if the set of movements really
-        // changed, otherwise every re-run would delete and re-insert unchanged join rows.
+        // Only rewrite the join rows when the set of movements actually changed.
         var wanted = record.Movements.Select(Slug.From).Where(s => s.Length > 0).Distinct().ToList();
         var current = artwork.Movements.Select(m => m.Slug).ToHashSet();
 
         if (!current.SetEquals(wanted))
         {
+            // Join-row changes don't mark the artwork itself modified; bump UpdatedAt so the
+            // indexer sees it as stale.
+            artwork.UpdatedAt = DateTimeOffset.UtcNow;
             artwork.Movements.Clear();
             foreach (var slug in wanted)
             {
@@ -191,8 +264,7 @@ public class ArtworkIngestionService(IEpochaDbContext db, ILogger<ArtworkIngesti
     private static string ToTitleCase(string value) =>
         CultureInfo.InvariantCulture.TextInfo.ToTitleCase(value.Trim().ToLowerInvariant());
 
-    // Museum data is messy. Truncating to the column's max length means one unusually
-    // long string can't make the whole page's INSERT fail.
+    // Museum data is messy; truncating to the column length keeps one long string from failing a whole page.
     private static string? Truncate(string? value, int maxLength) =>
         value is null || value.Length <= maxLength ? value : value[..maxLength];
 }

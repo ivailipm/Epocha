@@ -2,11 +2,7 @@ using Epocha.Domain.Enums;
 
 namespace Epocha.Domain.Common;
 
-/// <summary>
-/// Maps a year to an <see cref="Era"/>. Pure domain logic: no database, no HTTP,
-/// no framework types — which is exactly why it lives in the Domain project and is
-/// trivial to unit test.
-/// </summary>
+/// <summary>Maps a year to an <see cref="Era"/>. Pure logic with no framework dependencies.</summary>
 public static class EraCalculator
 {
     public static Era FromYear(int? year) => year switch

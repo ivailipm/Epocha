@@ -3,15 +3,9 @@ using Epocha.Domain.Enums;
 namespace Epocha.Application.Ingestion;
 
 /// <summary>
-/// One artwork in a museum-neutral shape. Each museum client (Art Institute, Met, ...)
-/// translates its own JSON into this record, so everything downstream — upserting into
-/// Postgres, later indexing into Elasticsearch — never needs to know which museum
-/// the data came from.
+/// One artwork in a museum-neutral shape. Each museum client maps its own JSON into this,
+/// so upserting and indexing never depend on which museum the data came from.
 /// </summary>
-/// <remarks>
-/// A C# <c>record</c> is an immutable data carrier with value-based equality. It's the
-/// idiomatic choice for DTOs like this that are created once and then only read.
-/// </remarks>
 public record ArtworkRecord(
     SourceSystem SourceSystem,
     string ExternalId,
@@ -34,5 +28,5 @@ public record ArtworkRecord(
 
 public record ArtistRecord(string ExternalId, string Name);
 
-/// <summary>One page of results plus whether asking for the next page is worthwhile.</summary>
+/// <summary>One page of results plus whether another page is available.</summary>
 public record ArtworkPage(IReadOnlyList<ArtworkRecord> Records, bool HasMore);

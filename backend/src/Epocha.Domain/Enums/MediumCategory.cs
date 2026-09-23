@@ -1,15 +1,9 @@
 namespace Epocha.Domain.Enums;
 
 /// <summary>
-/// Normalised bucket for the museum's free-text medium description.
+/// Normalised bucket for a museum's free-text medium, used for the Medium filter. The
+/// original text is kept on <see cref="Entities.Artwork.MediumDisplay"/>.
 /// </summary>
-/// <remarks>
-/// Museums record medium as prose ("Oil on canvas", "Gelatin silver print",
-/// "Bronze with green patina"). That is great for display and useless for a filter
-/// dropdown, so ingestion keeps the original string on
-/// <see cref="Entities.Artwork.MediumDisplay"/> and additionally classifies it into
-/// one of these buckets for faceting.
-/// </remarks>
 public enum MediumCategory
 {
     Unknown = 0,

@@ -4,11 +4,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Epocha.Application.Abstractions;
 
 /// <summary>
-/// The slice of the database that Application code is allowed to use. The concrete
-/// <c>EpochaDbContext</c> lives in Infrastructure and implements this, so Application
-/// services can query and save entities without referencing Infrastructure (which
-/// would invert the dependency direction). It also means tests can substitute a
-/// different implementation.
+/// The part of the database that Application code may use. Implemented by EpochaDbContext in
+/// Infrastructure, so Application does not depend on Infrastructure.
 /// </summary>
 public interface IEpochaDbContext
 {

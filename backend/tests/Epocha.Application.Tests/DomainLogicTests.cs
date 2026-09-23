@@ -5,8 +5,6 @@ namespace Epocha.Application.Tests;
 
 public class DomainLogicTests
 {
-    // [Theory] + [InlineData] runs the same test once per row: xUnit's way of writing
-    // table-driven tests.
     [Theory]
     [InlineData("Oil on canvas", null, MediumCategory.Painting)]
     [InlineData("Gelatin silver print", null, MediumCategory.Photograph)]

@@ -2,12 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Epocha.Infrastructure.Sources.ArticApi;
 
-// These types mirror the Art Institute of Chicago API's JSON exactly, and nothing
-// else in the codebase uses them. They exist only to deserialize the response; the
-// client then maps them into the museum-neutral ArtworkRecord. Keeping them separate
-// means an upstream API change only ever touches this folder.
-//
-// [JsonPropertyName] maps the API's snake_case names onto C#'s PascalCase properties.
+// Mirrors the Art Institute API's JSON. Used only for deserialization, then mapped to ArtworkRecord.
 
 internal record ArticResponse(
     [property: JsonPropertyName("pagination")] ArticPagination Pagination,

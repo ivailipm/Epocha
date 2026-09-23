@@ -6,20 +6,10 @@ using Epocha.Domain.Enums;
 
 namespace Epocha.Infrastructure.Sources.ArticApi;
 
-/// <summary>
-/// Implements <see cref="IArtworkSource"/> for the Art Institute of Chicago's public API
-/// (no API key needed). Fetches one page, then translates each museum-specific
-/// artwork into the neutral <see cref="ArtworkRecord"/>.
-/// </summary>
-/// <remarks>
-/// The <see cref="HttpClient"/> arrives via constructor injection. It's created by
-/// <c>AddHttpClient</c> (see DependencyInjection.cs), which manages the underlying
-/// connections for us — never <c>new HttpClient()</c> per request, which can exhaust
-/// sockets.
-/// </remarks>
+/// <summary>Reads artworks from the Art Institute of Chicago public API (no key required).</summary>
 internal sealed partial class ArticArtworkSource(HttpClient http) : IArtworkSource
 {
-    // Only ask for the fields we use; the API's default response is much larger.
+    // Only request the fields we use; the default response is much larger.
     private const string Fields =
         "id,title,description,medium_display,classification_title,department_title,dimensions," +
         "credit_line,date_display,date_start,date_end,image_id,is_public_domain," +
@@ -47,9 +37,6 @@ internal sealed partial class ArticArtworkSource(HttpClient http) : IArtworkSour
     private static ArtworkRecord ToRecord(ArticArtwork a, string iiif)
     {
         var id = a.Id.ToString();
-
-        // IIIF is an image-serving standard: the URL itself says what size you want.
-        // "843," means "843px wide, height scaled to match".
         var hasImage = !string.IsNullOrEmpty(a.ImageId);
 
         return new ArtworkRecord(
@@ -66,6 +53,7 @@ internal sealed partial class ArticArtworkSource(HttpClient http) : IArtworkSour
             DateDisplay: a.DateDisplay,
             DateStartYear: a.DateStart,
             DateEndYear: a.DateEnd,
+            // IIIF image URLs encode the requested width, e.g. "843," is 843px wide.
             ImageUrl: hasImage ? $"{iiif}/{a.ImageId}/full/843,/0/default.jpg" : null,
             ThumbnailUrl: hasImage ? $"{iiif}/{a.ImageId}/full/300,/0/default.jpg" : null,
             IsPublicDomain: a.IsPublicDomain,
@@ -75,7 +63,7 @@ internal sealed partial class ArticArtworkSource(HttpClient http) : IArtworkSour
             Movements: a.StyleTitles ?? []);
     }
 
-    // The API's descriptions arrive as HTML ("<p>...</p>"); we store plain text.
+    // Descriptions arrive as HTML; store plain text.
     private static string? StripHtml(string? html)
     {
         if (string.IsNullOrWhiteSpace(html))
