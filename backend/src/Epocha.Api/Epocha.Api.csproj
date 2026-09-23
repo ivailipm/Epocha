@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Epocha.Application\Epocha.Application.csproj" />
+    <ProjectReference Include="..\Epocha.Infrastructure\Epocha.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

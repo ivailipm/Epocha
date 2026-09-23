@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/backend/" />
+  <Folder Name="/backend/src/">
+    <Project Path="backend/src/Epocha.Api/Epocha.Api.csproj" />
+    <Project Path="backend/src/Epocha.Application/Epocha.Application.csproj" />
+    <Project Path="backend/src/Epocha.Domain/Epocha.Domain.csproj" />
+    <Project Path="backend/src/Epocha.Infrastructure/Epocha.Infrastructure.csproj" />
+    <Project Path="backend/src/Epocha.Ingestion/Epocha.Ingestion.csproj" />
+  </Folder>
+  <Folder Name="/backend/tests/">
+    <Project Path="backend/tests/Epocha.Application.Tests/Epocha.Application.Tests.csproj" />
+  </Folder>
+</Solution>
