@@ -1,4 +1,3 @@
-using System.Globalization;
 using Epocha.Application.Abstractions;
 using Epocha.Application.Search;
 using Epocha.Domain.Common;
@@ -65,25 +64,27 @@ public class ArtworkIngestionService(
             }
         }
 
-        // Movements are deduplicated by slug, so "Impressionism" and "impressionism" are one row.
-        var movementNamesBySlug = records
+        // Only movements recognised by the catalog are kept; the museum's style data also
+        // contains centuries, cultures and dynasties that don't belong in a movement filter.
+        var catalogMovements = records
             .SelectMany(r => r.Movements)
-            .GroupBy(Slug.From)
-            .Where(g => g.Key.Length > 0)
-            .ToDictionary(g => g.Key, g => g.First());
+            .Select(MovementCatalog.Normalize)
+            .OfType<CatalogMovement>()
+            .DistinctBy(m => m.Slug)
+            .ToList();
 
-        var slugs = movementNamesBySlug.Keys.ToList();
+        var slugs = catalogMovements.Select(m => m.Slug).ToList();
         var movements = await db.Movements
             .Where(m => slugs.Contains(m.Slug))
             .ToDictionaryAsync(m => m.Slug, cancellationToken);
 
-        foreach (var (slug, name) in movementNamesBySlug)
+        foreach (var catalogMovement in catalogMovements)
         {
-            if (!movements.ContainsKey(slug))
+            if (!movements.ContainsKey(catalogMovement.Slug))
             {
-                var movement = new Movement { Name = Truncate(ToTitleCase(name), 128)!, Slug = slug };
+                var movement = new Movement { Name = catalogMovement.Name, Slug = catalogMovement.Slug };
                 db.Movements.Add(movement);
-                movements[slug] = movement;
+                movements[catalogMovement.Slug] = movement;
             }
         }
 
@@ -131,6 +132,79 @@ public class ArtworkIngestionService(
             "Upserted page: {Created} new, {Matched} already existed, {Indexed} indexed",
             created, matched, indexed);
         return new UpsertResult(created, matched, indexed);
+    }
+
+    /// <summary>
+    /// Brings movements already in Postgres in line with <see cref="MovementCatalog"/>: renames
+    /// them to their canonical form, merges duplicates and variants into one row, and deletes
+    /// anything that isn't a recognised movement. Affected artworks are marked updated so the
+    /// indexer refreshes them. Idempotent; a no-op when everything already matches.
+    /// </summary>
+    /// <returns>The number of movements that were renamed, merged or removed.</returns>
+    public async Task<int> NormalizeExistingMovementsAsync(CancellationToken cancellationToken)
+    {
+        var movements = await db.Movements.ToListAsync(cancellationToken);
+        var bySlug = movements.ToDictionary(m => m.Slug);
+        var changed = 0;
+
+        foreach (var movement in movements)
+        {
+            var canonical = MovementCatalog.Normalize(movement.Name);
+
+            if (canonical is not null && canonical.Slug == movement.Slug && canonical.Name == movement.Name)
+            {
+                continue;
+            }
+
+            var artworks = await db.Artworks
+                .Include(a => a.Movements)
+                .Where(a => a.Movements.Any(m => m.Id == movement.Id))
+                .ToListAsync(cancellationToken);
+
+            Movement? target = null;
+            var renameInPlace = canonical is not null
+                && (!bySlug.TryGetValue(canonical.Slug, out target) || ReferenceEquals(target, movement));
+
+            if (renameInPlace)
+            {
+                bySlug.Remove(movement.Slug);
+                movement.Name = canonical!.Name;
+                movement.Slug = canonical.Slug;
+                bySlug[movement.Slug] = movement;
+            }
+            else
+            {
+                // Merge into the canonical row, or drop the movement when it isn't in the catalog.
+                foreach (var artwork in artworks)
+                {
+                    artwork.Movements.Remove(movement);
+                    if (target is not null && !artwork.Movements.Contains(target))
+                    {
+                        artwork.Movements.Add(target);
+                    }
+                }
+
+                db.Movements.Remove(movement);
+                bySlug.Remove(movement.Slug);
+            }
+
+            // Touch every affected artwork so the backlog pass re-indexes it.
+            var now = DateTimeOffset.UtcNow;
+            foreach (var artwork in artworks)
+            {
+                artwork.UpdatedAt = now;
+            }
+
+            changed++;
+        }
+
+        if (changed > 0)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Normalised {Count} movements against the catalog", changed);
+        }
+
+        return changed;
     }
 
     /// <summary>
@@ -245,7 +319,12 @@ public class ArtworkIngestionService(
         }
 
         // Only rewrite the join rows when the set of movements actually changed.
-        var wanted = record.Movements.Select(Slug.From).Where(s => s.Length > 0).Distinct().ToList();
+        var wanted = record.Movements
+            .Select(MovementCatalog.Normalize)
+            .OfType<CatalogMovement>()
+            .Select(m => m.Slug)
+            .Distinct()
+            .ToList();
         var current = artwork.Movements.Select(m => m.Slug).ToHashSet();
 
         if (!current.SetEquals(wanted))
@@ -260,9 +339,6 @@ public class ArtworkIngestionService(
             }
         }
     }
-
-    private static string ToTitleCase(string value) =>
-        CultureInfo.InvariantCulture.TextInfo.ToTitleCase(value.Trim().ToLowerInvariant());
 
     // Museum data is messy; truncating to the column length keeps one long string from failing a whole page.
     private static string? Truncate(string? value, int maxLength) =>

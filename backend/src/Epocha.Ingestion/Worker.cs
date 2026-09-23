@@ -29,6 +29,12 @@ public class Worker(
                 await indexer.EnsureIndexAsync(stoppingToken);
             }
 
+            using (var maintenanceScope = scopeFactory.CreateScope())
+            {
+                var service = maintenanceScope.ServiceProvider.GetRequiredService<ArtworkIngestionService>();
+                await service.NormalizeExistingMovementsAsync(stoppingToken);
+            }
+
             for (var page = 1; page <= settings.MaxPages; page++)
             {
                 // The worker lives for the whole process but DbContext must be short-lived, so

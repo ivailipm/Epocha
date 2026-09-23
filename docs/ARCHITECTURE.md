@@ -63,6 +63,7 @@ Facet counts for each facet are computed with that facet's own filter removed, s
 - **Explicit Elasticsearch mapping.** Text fields are analysed for search; keyword fields back filters and facets (era, medium, movement, artist).
 - **Derived fields stored once.** `Era` and `MediumCategory` are computed at ingestion so both stores agree.
 - **Messy museum data is normalised.** Dates keep the display string plus a numeric range, and free-text mediums are bucketed into categories.
+- **Movements come from a curated catalog.** The museum's "style" data mixes movements with centuries, cultures and dynasties, so only values in `MovementCatalog` are kept, and variants ("Analytical Cubism") fold into one canonical movement. Each ingestion run also reconciles movements already stored, so extending the catalog fixes existing data.
 
 ## Running locally
 
