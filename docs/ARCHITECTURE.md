@@ -85,6 +85,27 @@ the frontend calls relative URLs like `fetch("/api/artworks/search")` with no CO
 in development. In production (once containerised) the API will be reachable at a real URL
 instead, and the base URL will come from a Vite environment variable rather than being hardcoded.
 
+### State updates and effects
+
+A `useEffect` that fetches data often wants to show a loading state while the request is in
+flight. The natural-looking way to do that is to call `setStatus('loading')` as the first line
+inside the effect — but React's linter (and the React team) flag that: it's a synchronous state
+update from inside an effect, which causes an extra render on every run. The fix depends on where
+the change that triggers the effect comes from:
+
+- **`Gallery`** re-fetches when the search text or a filter changes, and every one of those
+  changes is caused by a local event: typing in the search box, ticking a filter checkbox. So the
+  loading state is set right there in the `onChange`/`onClick` handler instead of in the effect —
+  "update it from the event that caused the change," which is what the linter itself suggests.
+- **`ArtworkDetailPage`** re-fetches when the `:id` route param changes, and that has no single
+  local event to hook into — it could be a click on an `ArtworkCard` in a completely different
+  component, the browser's back button, or a URL typed directly. Instead of fighting the linter or
+  suppressing the rule, `ArtworkDetailPage` renders `<ArtworkDetailView key={id} .../>`: changing
+  `key` makes React discard the old component instance and mount a fresh one whenever `id`
+  changes, so `status` starts at `'loading'` through `useState`'s initial value rather than an
+  effect resetting it. Same result, no synchronous `setState` in the effect, and it's a standard
+  React pattern for "this piece of state should fully reset when this identity changes."
+
 ### Running it
 
 ```

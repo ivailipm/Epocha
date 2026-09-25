@@ -39,6 +39,50 @@ export interface SearchParams {
   pageSize?: number
 }
 
+export interface ArtistSummary {
+  id: number
+  name: string
+  nationality: string | null
+  birthYear: number | null
+  deathYear: number | null
+}
+
+export interface ArtworkDetail {
+  id: number
+  title: string
+  description: string | null
+  mediumDisplay: string | null
+  mediumCategory: string
+  department: string | null
+  dimensions: string | null
+  creditLine: string | null
+  dateDisplay: string | null
+  dateStartYear: number | null
+  dateEndYear: number | null
+  era: string
+  imageUrl: string | null
+  thumbnailUrl: string | null
+  isPublicDomain: boolean
+  sourceSystem: string
+  sourceUrl: string | null
+  artist: ArtistSummary | null
+  movements: string[]
+}
+
+export async function getArtwork(id: number, signal?: AbortSignal): Promise<ArtworkDetail | null> {
+  const response = await fetch(`/api/artworks/${id}`, { signal })
+
+  if (response.status === 404) {
+    return null
+  }
+
+  if (!response.ok) {
+    throw new Error(`Artwork request failed with status ${response.status}`)
+  }
+
+  return (await response.json()) as ArtworkDetail
+}
+
 export async function searchArtworks(
   params: SearchParams,
   signal?: AbortSignal,
