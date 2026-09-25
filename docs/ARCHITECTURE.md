@@ -85,3 +85,9 @@ dotnet run        # set DOTNET_ENVIRONMENT=Development
 Done: domain model, persistence and migrations, ingestion into Postgres and Elasticsearch,
 search endpoint (filters, facets, sorting, paging), detail endpoint, movement data cleanup.
 Next: React frontend, then containerising the API and frontend.
+
+
+an ingestion write, and a detail page should always show the current row. It projects straight into the DTO with .Select(...), so EF Core only asks Postgres for the columns actually needed, not the whole entity graph.
+
+Api
+- Controllers/ArtworksController.cs now has GET /api/artworks/{id:int}, returning the artwork or a 404. The {id:int} route constraint means a non-integer id doesn't match the route at all, so it also comes back as 404 rather than a validation error — standard ASP.NET Core behavior, not a bug.
