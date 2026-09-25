@@ -10,6 +10,7 @@ public static class DependencyInjection
     {
         services.AddScoped<ArtworkIngestionService>();
         services.AddScoped<ArtworkSearchService>();
+        services.AddScoped<Details.ArtworkDetailService>();
         return services;
     }
 }

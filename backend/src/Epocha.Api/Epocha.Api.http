@@ -1,5 +1,9 @@
 @Epocha.Api_HostAddress = http://localhost:5196
 
+### Artwork detail
+GET {{Epocha.Api_HostAddress}}/api/artworks/1
+Accept: application/json
+
 ### Browse everything (first page)
 GET {{Epocha.Api_HostAddress}}/api/artworks/search
 Accept: application/json

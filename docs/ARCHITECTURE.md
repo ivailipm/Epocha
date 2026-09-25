@@ -55,6 +55,10 @@ Facet counts for each facet are computed with that facet's own filter removed, s
 "Baroque" still shows how many artworks each other era would return. Invalid input returns a
 400 problem-details response.
 
+`GET /api/artworks/{id}` returns the full record for one artwork, read directly from Postgres
+rather than Elasticsearch, so it is always current even if indexing is lagging. Returns 404 if
+the id doesn't exist.
+
 ## Design decisions
 
 - **Idempotent ingestion.** Rows are matched on `(SourceSystem, SourceExternalId)`, which has a unique index, so re-running the job never duplicates data.
@@ -79,5 +83,5 @@ dotnet run        # set DOTNET_ENVIRONMENT=Development
 ## Status
 
 Done: domain model, persistence and migrations, ingestion into Postgres and Elasticsearch,
-search endpoint (filters, facets, sorting, paging).
-Next: detail endpoint (Postgres), React frontend, then containerising the API and frontend.
+search endpoint (filters, facets, sorting, paging), detail endpoint, movement data cleanup.
+Next: React frontend, then containerising the API and frontend.
