@@ -69,6 +69,31 @@ input[type='search'] {
   font-size: 12px;
 }
 
+.sort-select {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sort-select select {
+  font: inherit;
+  text-transform: none;
+  font-weight: 400;
+  letter-spacing: normal;
+  padding: 6px 8px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+
 .gallery-grid {
   list-style: none;
   margin: 16px 0 0;
