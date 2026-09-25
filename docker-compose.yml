@@ -1,9 +1,7 @@
-# Infrastructure only, for local development.
-# The API, ingestion worker and frontend run on your host machine against these
-# (dotnet run / npm run dev) until the very last step of the build plan, when we
-# containerise them and add them here.
+# The ingestion service is a batch job, not a server: `up` never starts it, run it on demand
+# with `docker compose run --rm ingestion` whenever you want to (re-)fetch artworks.
 #
-#   docker compose up -d      start Postgres + Elasticsearch
+#   docker compose up -d      start everything except ingestion
 #   docker compose ps         check health
 #   docker compose down       stop (volumes are kept)
 #   docker compose down -v    stop and DELETE all data
@@ -50,6 +48,47 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: src/Epocha.Api/Dockerfile
+    container_name: epocha-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-epocha};Username=${POSTGRES_USER:-epocha};Password=${POSTGRES_PASSWORD:-epocha_dev_password}"
+      Elasticsearch__Url: "http://elasticsearch:9200"
+    ports:
+      - "${API_PORT:-8080}:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: epocha-frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+
+  ingestion:
+    build:
+      context: ./backend
+      dockerfile: src/Epocha.Ingestion/Dockerfile
+    container_name: epocha-ingestion
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-epocha};Username=${POSTGRES_USER:-epocha};Password=${POSTGRES_PASSWORD:-epocha_dev_password}"
+      Elasticsearch__Url: "http://elasticsearch:9200"
 
   # Optional: a browser UI for poking at Elasticsearch indices while you develop.
   # Start it with:  docker compose --profile tools up -d

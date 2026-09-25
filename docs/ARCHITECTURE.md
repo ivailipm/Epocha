@@ -114,6 +114,46 @@ npm install
 npm run dev          # serves on http://localhost:5173; needs the API running for real data
 ```
 
+## Containers
+
+The whole application runs in Docker: Postgres, Elasticsearch, the API, the frontend, and
+ingestion. `docker compose up -d` starts the first four together; ingestion is deliberately left
+out of that — it's a batch job that fetches a batch of artworks and exits, not a server, so it
+would make no sense to auto-start it (and re-fetch) every time the stack comes up. Run it on
+demand instead: `docker compose run --rm ingestion`.
+
+- **`backend/src/Epocha.Api/Dockerfile`** is a multi-stage build: an SDK image compiles and
+  publishes the app, then only the published output is copied into a much smaller ASP.NET runtime
+  image. The build context is `backend/` (set in `docker-compose.yml`), not the Api project's own
+  folder, because the image needs to `COPY` the other projects it references too.
+- **Migrations run on startup** (`Program.cs`, via `Database.MigrateAsync()`) rather than needing
+  a manual `dotnet ef database update` step. `Migrate()` only applies migrations that haven't run
+  yet, so this is a no-op on every restart after the first. This is a reasonable simplification for
+  a single-instance app; a system with multiple API replicas would need a separate migration step
+  so two containers don't race to alter the schema at once.
+- **Configuration comes from environment variables, not `appsettings.Production.json`.** The `api`
+  service in `docker-compose.yml` sets `ConnectionStrings__Postgres` and `Elasticsearch__Url`
+  directly; the double underscore is ASP.NET Core's convention for nested configuration keys via
+  env vars. Docker's internal DNS resolves `postgres` and `elasticsearch` to the right containers,
+  the same way `localhost` only worked when running on the host directly.
+- **`frontend/Dockerfile`** also multi-stage: a Node image runs `npm run build` to produce a
+  static `dist/`, then an `nginx:alpine` image serves just that output — nothing from Node or npm
+  ships in the final image.
+- **`frontend/nginx.conf`** does two things a static file server doesn't do by default:
+  - Proxies `/api/*` to the `api` container, mirroring what `vite.config.ts`'s dev server proxy
+    does. The browser only ever talks to one origin, so the API needs no CORS configuration in
+    either environment.
+  - Falls back to `index.html` for any other path (`try_files $uri /index.html`), which routes
+    like `/artworks/45` need: React Router handles them client-side, but without this, a direct
+    load or a page refresh on that URL would 404 at the web server before React ever runs.
+- **`backend/src/Epocha.Ingestion/Dockerfile`** is the same multi-stage pattern as the API's,
+  publishing `Epocha.Ingestion` instead. Its compose service has no `restart` policy and no ports
+  — it's meant to be run, finish, and exit, not stay up.
+- **A benign warning in both `.NET` containers' logs:** `Cannot load library
+  libgssapi_krb5.so.2`. Npgsql probes for optional GSSAPI/Kerberos authentication support, which
+  the minimal runtime image doesn't include; it fails to load and falls back to standard
+  password authentication, which is what the connection string actually uses. Harmless.
+
 ## Design decisions
 
 - **Idempotent ingestion.** Rows are matched on `(SourceSystem, SourceExternalId)`, which has a unique index, so re-running the job never duplicates data.
@@ -126,12 +166,41 @@ npm run dev          # serves on http://localhost:5173; needs the API running fo
 
 ## Running locally
 
+**Full stack, one command** — Postgres, Elasticsearch, the API (migrating itself on startup) and
+the frontend, all in Docker:
+
 ```
 copy .env.example .env
-docker compose up -d
+docker compose up -d --build
+```
+
+The app is then at `http://localhost:3000`. The database starts empty; run ingestion once (see
+below) to populate it.
+
+**Local development** — infrastructure in Docker, API/frontend on the host with hot reload:
+
+```
+copy .env.example .env
+docker compose up -d postgres elasticsearch
 cd backend/src/Epocha.Infrastructure
 dotnet ef database update --startup-project ../Epocha.Api/Epocha.Api.csproj
-cd ../Epocha.Ingestion
+cd ../Epocha.Api
+dotnet run        # set DOTNET_ENVIRONMENT=Development; serves on http://localhost:5196
+cd ../../../frontend
+npm install
+npm run dev        # serves on http://localhost:5173, proxying /api to the API above
+```
+
+**Ingestion** — containerized (against the Docker Postgres/Elasticsearch):
+
+```
+docker compose run --rm ingestion
+```
+
+or, against whichever Postgres/Elasticsearch you're running locally instead:
+
+```
+cd backend/src/Epocha.Ingestion
 dotnet run        # set DOTNET_ENVIRONMENT=Development
 ```
 
@@ -139,8 +208,11 @@ dotnet run        # set DOTNET_ENVIRONMENT=Development
 
 Done: domain model, persistence and migrations, ingestion into Postgres and Elasticsearch,
 search endpoint (filters, facets, sorting, paging), detail endpoint, movement data cleanup,
-frontend scaffolded (Vite + React + TypeScript, not yet calling the API).
-Next: gallery/search view, artwork detail page, then containerising the API and frontend.
+frontend (gallery, filters, sorting, pagination, detail page). The entire application is
+containerized: Postgres, Elasticsearch, API, frontend and ingestion.
+
+The MVP from the original build order is complete. Possible next steps: the Met API as a second
+`IArtworkSource`, an artist search filter, the timeline view, deploying it somewhere public.
 
 
 an ingestion write, and a detail page should always show the current row. It projects straight into the DTO with .Select(...), so EF Core only asks Postgres for the columns actually needed, not the whole entity graph.
