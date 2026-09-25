@@ -1,8 +1,10 @@
+import { Gallery } from './components/Gallery'
+
 function App() {
   return (
     <main>
       <h1>Epocha</h1>
-      <p>Art and history timeline explorer — gallery coming next.</p>
+      <Gallery />
     </main>
   )
 }

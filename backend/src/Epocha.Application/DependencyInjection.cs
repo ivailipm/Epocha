@@ -11,6 +11,7 @@ public static class DependencyInjection
         services.AddScoped<ArtworkIngestionService>();
         services.AddScoped<ArtworkSearchService>();
         services.AddScoped<Details.ArtworkDetailService>();
+        services.AddScoped<Images.ArtworkImageService>();
         return services;
     }
 }

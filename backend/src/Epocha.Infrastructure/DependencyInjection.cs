@@ -1,5 +1,6 @@
 using Elastic.Clients.Elasticsearch;
 using Epocha.Application.Abstractions;
+using Epocha.Application.Images;
 using Epocha.Application.Ingestion;
 using Epocha.Application.Search;
 using Epocha.Infrastructure.Persistence;
@@ -28,6 +29,12 @@ public static class DependencyInjection
         services.AddHttpClient<IArtworkSource, ArticArtworkSource>(client =>
         {
             client.BaseAddress = new Uri("https://api.artic.edu/api/v1/");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Epocha/1.0 (portfolio project)");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
+        services.AddHttpClient<IExternalImageFetcher, ArticImageFetcher>(client =>
+        {
             client.DefaultRequestHeaders.UserAgent.ParseAdd("Epocha/1.0 (portfolio project)");
             client.Timeout = TimeSpan.FromSeconds(30);
         });
