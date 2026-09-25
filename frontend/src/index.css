@@ -15,10 +15,58 @@ main {
 
 input[type='search'] {
   width: 100%;
-  max-width: 400px;
   padding: 8px 12px;
   font-size: 16px;
   box-sizing: border-box;
+}
+
+.layout {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+  margin-top: 16px;
+}
+
+.filters {
+  width: 220px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.results {
+  flex: 1;
+  min-width: 0;
+}
+
+.facet-group {
+  border: none;
+  padding: 0;
+  margin: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.facet-group legend {
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 0 6px;
+}
+
+.facet-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  padding: 2px 0;
+}
+
+.facet-count {
+  color: light-dark(#777, #888);
+  font-size: 12px;
 }
 
 .gallery-grid {
