@@ -53,6 +53,6 @@ dotnet test backend/Epocha.slnx
 
 ## Status
 
-In progress. Backend (ingestion, search, detail endpoint) is done; the React frontend and
-containerising the API are next. See the Status section of
+In progress. Backend (ingestion, search, detail endpoint) is done; the frontend is scaffolded
+and the gallery/search view is next, then containerising the API and frontend. See the Status section of
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the current build order.

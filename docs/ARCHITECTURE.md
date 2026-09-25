@@ -10,7 +10,7 @@ stores them in Postgres, and indexes them in Elasticsearch for full-text and fac
 | API | ASP.NET Core Web API (.NET 10) |
 | Source of truth | PostgreSQL 17 via EF Core |
 | Search | Elasticsearch 8 |
-| Frontend | React + TypeScript (planned) |
+| Frontend | React + TypeScript (Vite) |
 | Local infrastructure | Docker Compose (Postgres and Elasticsearch) |
 
 ## Solution layout
@@ -59,6 +59,40 @@ Facet counts for each facet are computed with that facet's own filter removed, s
 rather than Elasticsearch, so it is always current even if indexing is lagging. Returns 404 if
 the id doesn't exist.
 
+## Frontend
+
+`frontend/` is a React + TypeScript app scaffolded with [Vite](https://vite.dev). A few concepts
+worth knowing if React is new:
+
+- **Vite** is the build tool and dev server. `npm run dev` serves the app with hot module
+  reloading (edits appear in the browser without a full refresh); `npm run build` type-checks
+  with `tsc` and produces a static `dist/` bundle for deployment.
+- **Components** are functions that return JSX (HTML-like syntax in TypeScript) describing what
+  to render, e.g. `App` in `src/App.tsx`. React re-runs a component's function whenever its state
+  or props change, and updates only the parts of the real DOM that actually changed.
+- **`src/main.tsx`** is the entry point: it mounts `<App />` into the `#root` element declared in
+  `index.html`. This is the one place that talks to the DOM directly; everything else is
+  components describing what should appear.
+- **TypeScript** adds static types on top of JavaScript, checked at build time (`tsc -b`) rather
+  than only at runtime. The API's response shapes (`ArtworkSummary`, `ArtworkSearchResult`, ...)
+  will be mirrored as TypeScript types, so a mismatch between what the frontend expects and what
+  the API actually returns is caught while building rather than as a bug in the browser.
+
+### Talking to the API
+
+The dev server proxies `/api/*` to `http://localhost:5196` (configured in `vite.config.ts`), so
+the frontend calls relative URLs like `fetch("/api/artworks/search")` with no CORS setup needed
+in development. In production (once containerised) the API will be reachable at a real URL
+instead, and the base URL will come from a Vite environment variable rather than being hardcoded.
+
+### Running it
+
+```
+cd frontend
+npm install
+npm run dev          # serves on http://localhost:5173; needs the API running for real data
+```
+
 ## Design decisions
 
 - **Idempotent ingestion.** Rows are matched on `(SourceSystem, SourceExternalId)`, which has a unique index, so re-running the job never duplicates data.
@@ -83,8 +117,9 @@ dotnet run        # set DOTNET_ENVIRONMENT=Development
 ## Status
 
 Done: domain model, persistence and migrations, ingestion into Postgres and Elasticsearch,
-search endpoint (filters, facets, sorting, paging), detail endpoint, movement data cleanup.
-Next: React frontend, then containerising the API and frontend.
+search endpoint (filters, facets, sorting, paging), detail endpoint, movement data cleanup,
+frontend scaffolded (Vite + React + TypeScript, not yet calling the API).
+Next: gallery/search view, artwork detail page, then containerising the API and frontend.
 
 
 an ingestion write, and a detail page should always show the current row. It projects straight into the DTO with .Select(...), so EF Core only asks Postgres for the columns actually needed, not the whole entity graph.
