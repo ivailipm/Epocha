@@ -14,6 +14,7 @@ dual-writing to a relational store and a search index, and containerising the wh
 - Multi-select facet counts (selecting one filter value doesn't hide the others)
 - Sorting and pagination
 - Artwork detail view
+- Accounts with named collections — save artworks, browse and search stay open to everyone
 - The entire application (Postgres, Elasticsearch, API, frontend, ingestion) runs in Docker
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the layer structure, the ingestion flow
@@ -56,6 +57,7 @@ dotnet test backend/Epocha.slnx
 
 ## Status
 
-The MVP is complete: ingestion, search, detail endpoint, and the frontend (gallery, filters,
-sorting, pagination, detail page), fully containerised. See the Status section of
+The MVP is complete, plus accounts and collections: ingestion, search, detail endpoint, the
+frontend (gallery, filters, sorting, pagination, detail page), and user accounts with named
+collections, all fully containerised. See the Status section of
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for what's next.

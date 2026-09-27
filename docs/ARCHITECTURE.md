@@ -59,6 +59,35 @@ Facet counts for each facet are computed with that facet's own filter removed, s
 rather than Elasticsearch, so it is always current even if indexing is lagging. Returns 404 if
 the id doesn't exist.
 
+## Authentication and collections
+
+Browsing, searching and viewing artworks needs no account. Saving one into a named collection
+does — `POST /api/auth/register` and `/login` (`Api/Controllers/AuthController.cs`) issue a JWT;
+every `/api/collections/*` endpoint requires it via `[Authorize]`.
+
+- **Password hashing without full ASP.NET Core Identity.** `PasswordHasher<User>` (from
+  `Microsoft.Extensions.Identity.Core`) is Identity's hashing algorithm on its own, without
+  `UserManager`, `SignInManager` or `IdentityDbContext` — those would impose their own schema and
+  conventions on a codebase that already has its own `User` entity and `EpochaDbContext`.
+- **Compact JWT claims.** The token is issued with short standard claim names (`sub`, `email`,
+  `name`) rather than the long `ClaimTypes` URIs (`http://schemas.xmlsoap.org/...`). JWT bearer's
+  default inbound claim mapping turns the short names into the familiar `ClaimTypes.NameIdentifier`
+  etc. on the receiving end, so `User.GetUserId()` (`Api/Auth/ClaimsPrincipalExtensions.cs`) reads
+  the same way either way — the short form was a fix, not the first version, once decoding an
+  actual token showed how much larger the long form made it.
+- **Ownership by query, not by check.** Every `CollectionService` method filters by
+  `(Id, UserId)` in the same `Where` clause, rather than fetching a collection by id and checking
+  `.UserId == currentUserId` afterward. That makes another user's collection behave exactly like a
+  nonexistent one — a 404, not a 403 — so a request can't be used to learn which collection ids
+  exist at all. Verified directly: a second user hitting the first user's collection id gets 404
+  whether reading or modifying it.
+- **Adding vs. removing artworks is asymmetric on purpose.** `AddArtworkAsync`/`RemoveArtworkAsync`
+  are both idempotent (adding an artwork already there, or removing one that isn't, succeeds as a
+  no-op) — the same pattern as ingestion's upsert. The frontend only ever adds through
+  `SaveToCollectionMenu`; removing happens on the collection's own detail page instead, because
+  showing which of a user's collections already contain a given artwork would need fetching every
+  collection's full contents just to render a save button.
+
 ## Frontend
 
 `frontend/` is a React + TypeScript app scaffolded with [Vite](https://vite.dev). A few concepts
@@ -106,6 +135,21 @@ the change that triggers the effect comes from:
   effect resetting it. Same result, no synchronous `setState` in the effect, and it's a standard
   React pattern for "this piece of state should fully reset when this identity changes."
 
+### Auth state and route guards
+
+`AuthProvider` (`context/AuthProvider.tsx`) holds the current session in React state and mirrors
+it to `localStorage`, so a refresh doesn't log you out. It's split across three files —
+`AuthContext.ts` (just the context object and its type), `AuthProvider.tsx` (the provider
+component) and `useAuth.ts` (the hook) — rather than one, because a file that exports both a
+component and a plain function breaks Vite's Fast Refresh for that file; oxlint's
+`only-export-components` rule catches this, and the fix is the file split, not a suppression.
+
+`RequireAuth` wraps the `/collections` routes and redirects to `/login` when there's no session,
+carrying `state: { from: location.pathname }` so `LoginPage`/`RegisterPage` can send you back to
+where you were instead of always landing on the home page. `SaveToCollectionMenu` reuses the same
+redirect for the same reason: clicking "Save" while logged out is the other place a login is
+suddenly required mid-task.
+
 ### Running it
 
 ```
@@ -132,10 +176,12 @@ demand instead: `docker compose run --rm ingestion`.
   a single-instance app; a system with multiple API replicas would need a separate migration step
   so two containers don't race to alter the schema at once.
 - **Configuration comes from environment variables, not `appsettings.Production.json`.** The `api`
-  service in `docker-compose.yml` sets `ConnectionStrings__Postgres` and `Elasticsearch__Url`
-  directly; the double underscore is ASP.NET Core's convention for nested configuration keys via
-  env vars. Docker's internal DNS resolves `postgres` and `elasticsearch` to the right containers,
-  the same way `localhost` only worked when running on the host directly.
+  service in `docker-compose.yml` sets `ConnectionStrings__Postgres`, `Elasticsearch__Url` and
+  `Jwt__Secret`/`Jwt__Issuer`/`Jwt__Audience` directly; the double underscore is ASP.NET Core's
+  convention for nested configuration keys via env vars. Docker's internal DNS resolves `postgres`
+  and `elasticsearch` to the right containers, the same way `localhost` only worked when running
+  on the host directly. `JWT_SECRET` has a dev-only default in `.env.example`, the same tradeoff as
+  the default Postgres password — fine for a machine only you can reach, never for a real deployment.
 - **`frontend/Dockerfile`** also multi-stage: a Node image runs `npm run build` to produce a
   static `dist/`, then an `nginx:alpine` image serves just that output — nothing from Node or npm
   ships in the final image.
@@ -147,8 +193,13 @@ demand instead: `docker compose run --rm ingestion`.
     like `/artworks/45` need: React Router handles them client-side, but without this, a direct
     load or a page refresh on that URL would 404 at the web server before React ever runs.
 - **`backend/src/Epocha.Ingestion/Dockerfile`** is the same multi-stage pattern as the API's,
-  publishing `Epocha.Ingestion` instead. Its compose service has no `restart` policy and no ports
-  — it's meant to be run, finish, and exit, not stay up.
+  publishing `Epocha.Ingestion` instead. Its compose service has no `restart` policy or ports, and
+  — this is the part that actually matters — a `profiles: ["jobs"]` entry. Without that, a bare
+  `docker compose up -d` (no service names) starts every service that isn't already running,
+  including a one-shot job, which would silently re-fetch artworks on every stack restart; that's
+  exactly what happened before the profile was added, caught by checking the ingestion container's
+  own logs after an unrelated `up -d`. The profile keeps it out of that set while
+  `docker compose run --rm ingestion` still works by naming it directly, profile or not.
 - **A benign warning in both `.NET` containers' logs:** `Cannot load library
   libgssapi_krb5.so.2`. Npgsql probes for optional GSSAPI/Kerberos authentication support, which
   the minimal runtime image doesn't include; it fails to load and falls back to standard
@@ -208,11 +259,13 @@ dotnet run        # set DOTNET_ENVIRONMENT=Development
 
 Done: domain model, persistence and migrations, ingestion into Postgres and Elasticsearch,
 search endpoint (filters, facets, sorting, paging), detail endpoint, movement data cleanup,
-frontend (gallery, filters, sorting, pagination, detail page). The entire application is
-containerized: Postgres, Elasticsearch, API, frontend and ingestion.
+frontend (gallery, filters, sorting, pagination, detail page), user accounts with named
+collections (save/rename/delete, add/remove artworks). The entire application is containerized:
+Postgres, Elasticsearch, API, frontend and ingestion.
 
-The MVP from the original build order is complete. Possible next steps: the Met API as a second
-`IArtworkSource`, an artist search filter, the timeline view, deploying it somewhere public.
+The MVP from the original build order is complete, plus the "accounts and collections" stretch
+goal. Possible next steps: the Met API as a second `IArtworkSource`, the timeline view, deploying
+it somewhere public.
 
 
 an ingestion write, and a detail page should always show the current row. It projects straight into the DTO with .Select(...), so EF Core only asks Postgres for the columns actually needed, not the whole entity graph.

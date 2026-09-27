@@ -57,6 +57,9 @@ services:
     environment:
       ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-epocha};Username=${POSTGRES_USER:-epocha};Password=${POSTGRES_PASSWORD:-epocha_dev_password}"
       Elasticsearch__Url: "http://elasticsearch:9200"
+      Jwt__Secret: "${JWT_SECRET:-3zFuAwUQgsV33UM2HiACeg0cmlwmpQW6P+UyGTokRUpUdFX0B0AglHnNqf9x8on8}"
+      Jwt__Issuer: "epocha-api-dev"
+      Jwt__Audience: "epocha-frontend-dev"
     ports:
       - "${API_PORT:-8080}:8080"
 
@@ -75,6 +78,11 @@ services:
       context: ./backend
       dockerfile: src/Epocha.Ingestion/Dockerfile
     container_name: epocha-ingestion
+    # Without a profile, a bare `up` (no service names) starts every service that isn't
+    # already running — including a one-shot job like this one, which would silently
+    # re-fetch artworks on every stack restart. The profile keeps it out of that set;
+    # `docker compose run --rm ingestion` still works by naming it directly.
+    profiles: ["jobs"]
     depends_on:
       postgres:
         condition: service_healthy
