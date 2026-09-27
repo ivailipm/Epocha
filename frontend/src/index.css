@@ -13,6 +13,53 @@ main {
   padding: 24px 16px 48px;
 }
 
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.auth-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 14px;
+}
+
+.auth-form {
+  max-width: 360px;
+  margin: 32px auto 0;
+}
+
+.auth-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.auth-form input {
+  font: inherit;
+  font-weight: 400;
+  padding: 8px 10px;
+  box-sizing: border-box;
+}
+
+.auth-error {
+  color: light-dark(#b91c1c, #f87171);
+  font-size: 13px;
+  margin: 0;
+}
+
 input[type='search'] {
   width: 100%;
   padding: 8px 12px;
