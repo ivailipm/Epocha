@@ -1,7 +1,15 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import type { ArtworkSummary } from '../lib/api'
+import { SaveToCollectionMenu } from './SaveToCollectionMenu'
 
-export function ArtworkCard({ artwork }: { artwork: ArtworkSummary }) {
+interface Props {
+  artwork: ArtworkSummary
+  // Extra action rendered next to "Save to collection", e.g. "Remove" on a collection's own page.
+  extraAction?: ReactNode
+}
+
+export function ArtworkCard({ artwork, extraAction }: Props) {
   return (
     <li className="artwork-card">
       <Link to={`/artworks/${artwork.id}`}>
@@ -20,6 +28,10 @@ export function ArtworkCard({ artwork }: { artwork: ArtworkSummary }) {
           {artwork.dateDisplay ? ` · ${artwork.dateDisplay}` : ''}
         </p>
       </Link>
+      <div className="artwork-card-actions">
+        <SaveToCollectionMenu artworkId={artwork.id} />
+        {extraAction}
+      </div>
     </li>
   )
 }

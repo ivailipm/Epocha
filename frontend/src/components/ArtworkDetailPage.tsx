@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { getArtwork, type ArtworkDetail } from '../lib/api'
+import { SaveToCollectionMenu } from './SaveToCollectionMenu'
 
 type Status = 'loading' | 'ready' | 'not-found' | 'error'
 
@@ -70,6 +71,8 @@ function ArtworkDetailView({ id }: { id: number }) {
             {artwork.artist?.name ?? 'Unknown artist'}
             {artwork.dateDisplay ? ` · ${artwork.dateDisplay}` : ''}
           </p>
+
+          <SaveToCollectionMenu artworkId={artwork.id} />
 
           {artwork.movements.length > 0 && (
             <p className="artwork-tags">{artwork.movements.join(' · ')}</p>
