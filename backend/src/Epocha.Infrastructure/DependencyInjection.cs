@@ -1,8 +1,10 @@
 using Elastic.Clients.Elasticsearch;
 using Epocha.Application.Abstractions;
+using Epocha.Application.Auth;
 using Epocha.Application.Images;
 using Epocha.Application.Ingestion;
 using Epocha.Application.Search;
+using Epocha.Infrastructure.Auth;
 using Epocha.Infrastructure.Persistence;
 using Epocha.Infrastructure.Search;
 using Epocha.Infrastructure.Sources.ArticApi;
@@ -46,6 +48,9 @@ public static class DependencyInjection
         services.AddSingleton(new ElasticsearchClient(new Uri(elasticUrl)));
         services.AddScoped<IArtworkSearchIndexer, ElasticArtworkSearchIndexer>();
         services.AddScoped<IArtworkSearcher, ElasticArtworkSearcher>();
+
+        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+        services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
 
         return services;
     }
