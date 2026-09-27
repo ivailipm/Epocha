@@ -12,6 +12,8 @@ public interface IEpochaDbContext
     DbSet<Artwork> Artworks { get; }
     DbSet<Artist> Artists { get; }
     DbSet<Movement> Movements { get; }
+    DbSet<User> Users { get; }
+    DbSet<Collection> Collections { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

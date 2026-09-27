@@ -10,6 +10,8 @@ public class EpochaDbContext(DbContextOptions<EpochaDbContext> options) : DbCont
     public DbSet<Artwork> Artworks => Set<Artwork>();
     public DbSet<Artist> Artists => Set<Artist>();
     public DbSet<Movement> Movements => Set<Movement>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<Collection> Collections => Set<Collection>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
