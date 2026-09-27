@@ -69,6 +69,20 @@ input[type='search'] {
   font-size: 12px;
 }
 
+.facet-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.facet-more {
+  font-size: 12px;
+  color: light-dark(#777, #888);
+  margin: 4px 0 0;
+}
+
 .sort-select {
   display: flex;
   flex-direction: column;

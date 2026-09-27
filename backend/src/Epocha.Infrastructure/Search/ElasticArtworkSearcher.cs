@@ -19,6 +19,9 @@ internal sealed class ElasticArtworkSearcher(ElasticsearchClient client) : IArtw
     private const string ArtistField = "artistName.keyword";
 
     private const int FacetSize = 30;
+    // Artist names run into the hundreds, unlike the other facets, and the frontend needs the
+    // full list client-side to power its searchable filter, not just the top few by count.
+    private const int ArtistFacetSize = 2000;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -50,7 +53,7 @@ internal sealed class ElasticArtworkSearcher(ElasticsearchClient client) : IArtw
                 ["era"] = Facet(EraField, Combine(medium, movement, artist, years)),
                 ["medium"] = Facet(MediumField, Combine(era, movement, artist, years)),
                 ["movement"] = Facet(MovementField, Combine(era, medium, artist, years)),
-                ["artist"] = Facet(ArtistField, Combine(era, medium, movement, years)),
+                ["artist"] = Facet(ArtistField, Combine(era, medium, movement, years), ArtistFacetSize),
             }
         };
 
@@ -145,13 +148,13 @@ internal sealed class ElasticArtworkSearcher(ElasticsearchClient client) : IArtw
             : new JsonObject { ["bool"] = new JsonObject { ["filter"] = new JsonArray(present) } };
     }
 
-    private static JsonObject Facet(string field, JsonNode otherFilters) =>
+    private static JsonObject Facet(string field, JsonNode otherFilters, int size = FacetSize) =>
         new()
         {
             ["filter"] = otherFilters,
             ["aggs"] = new JsonObject
             {
-                ["values"] = new JsonObject { ["terms"] = new JsonObject { ["field"] = field, ["size"] = FacetSize } }
+                ["values"] = new JsonObject { ["terms"] = new JsonObject { ["field"] = field, ["size"] = size } }
             }
         };
 

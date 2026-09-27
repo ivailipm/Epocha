@@ -1,10 +1,6 @@
 # The ingestion service is a batch job, not a server: `up` never starts it, run it on demand
-# with `docker compose run --rm ingestion` whenever you want to (re-)fetch artworks.
-#
-#   docker compose up -d      start everything except ingestion
-#   docker compose ps         check health
-#   docker compose down       stop (volumes are kept)
-#   docker compose down -v    stop and DELETE all data
+# with `docker compose run --rm ingestion` to (re-)fetch artworks.
+
 
 services:
   postgres:
@@ -32,12 +28,10 @@ services:
     container_name: epocha-elasticsearch
     restart: unless-stopped
     environment:
-      # Single-node dev cluster. Security is switched off so the API can talk to it
-      # over plain HTTP with no certificates — acceptable locally, NOT in production.
+      
       discovery.type: single-node
       xpack.security.enabled: "false"
       xpack.security.http.ssl.enabled: "false"
-      # Elasticsearch will happily eat all your RAM otherwise.
       ES_JAVA_OPTS: "-Xms512m -Xmx512m"
     ports:
       - "${ELASTIC_PORT:-9200}:9200"
@@ -90,8 +84,7 @@ services:
       ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-epocha};Username=${POSTGRES_USER:-epocha};Password=${POSTGRES_PASSWORD:-epocha_dev_password}"
       Elasticsearch__Url: "http://elasticsearch:9200"
 
-  # Optional: a browser UI for poking at Elasticsearch indices while you develop.
-  # Start it with:  docker compose --profile tools up -d
+  
   kibana:
     image: docker.elastic.co/kibana/kibana:8.15.3
     container_name: epocha-kibana

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { searchArtworks, type ArtworkSearchResult, type ArtworkSort } from '../lib/api'
 import { ArtworkCard } from './ArtworkCard'
 import { FacetFilterGroup } from './FacetFilterGroup'
+import { SearchableFacetFilterGroup } from './SearchableFacetFilterGroup'
 
 type Status = 'loading' | 'ready' | 'error'
 
@@ -22,6 +23,7 @@ export function Gallery() {
   const [eras, setEras] = useState<string[]>([])
   const [mediums, setMediums] = useState<string[]>([])
   const [movements, setMovements] = useState<string[]>([])
+  const [artists, setArtists] = useState<string[]>([])
   const [sort, setSort] = useState<ArtworkSort>('Relevance')
   const [page, setPage] = useState(1)
   const [result, setResult] = useState<ArtworkSearchResult | null>(null)
@@ -34,7 +36,7 @@ export function Gallery() {
     const controller = new AbortController()
 
     searchArtworks(
-      { q: query || undefined, era: eras, medium: mediums, movement: movements, sort, page },
+      { q: query || undefined, era: eras, medium: mediums, movement: movements, artist: artists, sort, page },
       controller.signal,
     )
       .then((data) => {
@@ -47,7 +49,7 @@ export function Gallery() {
       })
 
     return () => controller.abort()
-  }, [query, eras, mediums, movements, sort, page])
+  }, [query, eras, mediums, movements, artists, sort, page])
 
   // Any change to what's being asked for (not the page itself) should jump back to page 1,
   // otherwise a narrower filter can leave the view stranded past the end of the new results.
@@ -57,7 +59,7 @@ export function Gallery() {
     setStatus('loading')
   }
 
-  const hasFilters = eras.length > 0 || mediums.length > 0 || movements.length > 0
+  const hasFilters = eras.length > 0 || mediums.length > 0 || movements.length > 0 || artists.length > 0
 
   return (
     <div className="layout">
@@ -97,6 +99,7 @@ export function Gallery() {
                 setEras([])
                 setMediums([])
                 setMovements([])
+                setArtists([])
               })
             }
           >
@@ -123,6 +126,12 @@ export function Gallery() {
               buckets={result.facets.movement ?? []}
               selected={movements}
               onToggle={(value) => updateFilters(() => setMovements((prev) => toggle(prev, value)))}
+            />
+            <SearchableFacetFilterGroup
+              title="Artist"
+              buckets={result.facets.artist ?? []}
+              selected={artists}
+              onToggle={(value) => updateFilters(() => setArtists((prev) => toggle(prev, value)))}
             />
           </>
         )}
