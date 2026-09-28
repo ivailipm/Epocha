@@ -3,8 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      // Applies a saved theme choice before first paint, so a returning visitor never sees a
+      // flash of the wrong theme while React loads. No preference saved means "follow system",
+      // which the CSS already does on its own via light-dark() — nothing to do here for that case.
+      (function () {
+        try {
+          var theme = localStorage.getItem('epocha.theme')
+          if (theme === 'light' || theme === 'dark') {
+            document.documentElement.setAttribute('data-theme', theme)
+          }
+        } catch {
+          // Private browsing etc. can throw; falls back to following system preference.
+        }
+      })()
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Epocha</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,500&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div id="root"></div>

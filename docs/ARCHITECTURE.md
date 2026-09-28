@@ -1,6 +1,6 @@
 # Epocha: architecture
 
-Epocha is an art and history timeline explorer. It ingests artworks from public museum APIs,
+Epocha is an art history timeline explorer. It ingests artworks from public museum APIs,
 stores them in Postgres, and indexes them in Elasticsearch for full-text and faceted search.
 
 ## Stack

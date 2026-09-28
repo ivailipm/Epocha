@@ -6,6 +6,7 @@ import { Gallery } from './components/Gallery'
 import { LoginPage } from './components/LoginPage'
 import { RegisterPage } from './components/RegisterPage'
 import { RequireAuth } from './components/RequireAuth'
+import { ThemeToggle } from './components/ThemeToggle'
 import { useAuth } from './context/useAuth'
 
 function App() {
@@ -13,26 +14,30 @@ function App() {
 
   return (
     <main>
-      <header className="site-header">
-        <h1>
-          <Link to="/">Epocha</Link>
-        </h1>
-        <nav className="auth-nav">
-          {session ? (
-            <>
-              <Link to="/collections">My Collections</Link>
-              <span>Hi, {session.displayName}</span>
-              <button type="button" onClick={logout}>
-                Log out
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login">Log in</Link>
-              <Link to="/register">Register</Link>
-            </>
-          )}
-        </nav>
+      <header className="masthead">
+        <div className="masthead-top">
+          <Link to="/" className="masthead-wordmark">
+            Epocha
+          </Link>
+          <nav className="auth-nav">
+            {session ? (
+              <>
+                <Link to="/collections">My Collections</Link>
+                <span>{session.displayName}</span>
+                <button type="button" onClick={logout}>
+                  Log out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login">Log in</Link>
+                <Link to="/register">Register</Link>
+              </>
+            )}
+            <ThemeToggle />
+          </nav>
+        </div>
+        <p className="masthead-tagline">An Art History Timeline Explorer</p>
       </header>
 
       <Routes>

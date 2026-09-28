@@ -94,7 +94,7 @@ function CollectionDetailView({ id }: { id: number }) {
       <div className="collection-header">
         {isRenaming ? (
           <form onSubmit={handleRename} className="new-collection-form">
-            <input value={name} onChange={(event) => setName(event.target.value)} />
+            <input type="text" value={name} onChange={(event) => setName(event.target.value)} />
             <button type="submit">Save</button>
             <button type="button" onClick={() => setIsRenaming(false)}>
               Cancel

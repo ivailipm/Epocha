@@ -50,6 +50,7 @@ export function CollectionsPage() {
 
       <form onSubmit={handleCreate} className="new-collection-form">
         <input
+          type="text"
           placeholder="New collection name…"
           value={newName}
           onChange={(event) => setNewName(event.target.value)}

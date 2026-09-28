@@ -88,6 +88,7 @@ export function SaveToCollectionMenu({ artworkId }: { artworkId: number }) {
 
           <form onSubmit={handleCreateAndAdd} className="save-menu-new">
             <input
+              type="text"
               placeholder="New collection…"
               value={newName}
               onChange={(event) => setNewName(event.target.value)}
