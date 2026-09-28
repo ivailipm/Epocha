@@ -65,8 +65,16 @@ services:
       Jwt__Secret: "${JWT_SECRET:-3zFuAwUQgsV33UM2HiACeg0cmlwmpQW6P+UyGTokRUpUdFX0B0AglHnNqf9x8on8}"
       Jwt__Issuer: "epocha-api-dev"
       Jwt__Audience: "epocha-frontend-dev"
+      ImageCache__Directory: "/data/images"
     ports:
       - "${API_PORT:-8080}:8080"
+    volumes:
+      # A production host running on a datacenter IP gets an interactive Cloudflare challenge
+      # from the museum's image host that no server-side fetch can solve, so images must be
+      # pre-cached from an unflagged network (scripts/cache-images.mjs) and placed here — see
+      # ArtworkImageService. Harmless locally: dev machines aren't flagged, so the live fetch
+      # path still works there and this volume just stays empty.
+      - image-cache:/data/images
 
   frontend:
     build:
@@ -113,3 +121,4 @@ services:
 volumes:
   postgres-data:
   elasticsearch-data:
+  image-cache:
