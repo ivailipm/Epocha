@@ -55,6 +55,11 @@ GET /api/artworks/{id}
 dotnet test backend/Epocha.slnx
 ```
 
+## Deploying
+
+See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for deploying the whole stack with
+[Coolify](https://coolify.io), self-hosted on your own server.
+
 ## Status
 
 The MVP is complete, plus accounts and collections: ingestion, search, detail endpoint, the

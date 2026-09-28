@@ -47,9 +47,9 @@ public static class DependencyInjection
 
         var elasticSettings = new ElasticsearchClientSettings(new Uri(elasticUrl));
 
-        // Local Elasticsearch runs with security disabled (see docker-compose.yml); a hosted
-        // instance (e.g. Bonsai) requires basic auth, supplied here rather than embedded in the
-        // URL so the same settings work whether or not credentials are configured.
+        // Local Elasticsearch runs with security disabled (see docker-compose.yml); a secured
+        // or third-party hosted instance would need basic auth, supplied here rather than
+        // embedded in the URL so the same settings work whether or not credentials are configured.
         var elasticUsername = configuration["Elasticsearch:Username"];
         if (!string.IsNullOrEmpty(elasticUsername))
         {

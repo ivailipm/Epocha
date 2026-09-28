@@ -264,8 +264,13 @@ collections (save/rename/delete, add/remove artworks). The entire application is
 Postgres, Elasticsearch, API, frontend and ingestion.
 
 The MVP from the original build order is complete, plus the "accounts and collections" stretch
-goal. Possible next steps: the Met API as a second `IArtworkSource`, the timeline view, deploying
-it somewhere public.
+goal. Deployment target is [Coolify](https://coolify.io) (self-hosted on Hetzner), deploying
+`docker-compose.yml` directly — see `docs/DEPLOYMENT.md`. A prior attempt at deploying to Fly.io
+was abandoned after its trial tier turned out to require a card on file to deploy at all; nothing
+Fly-specific remains in the repo. Postgres's and Elasticsearch's port bindings are now
+localhost-only (`docker-compose.yml`), which matters on a real server in a way it didn't on a dev
+machine. Possible next steps: complete the Coolify deployment, the Met API as a second
+`IArtworkSource`, the timeline view.
 
 
 an ingestion write, and a detail page should always show the current row. It projects straight into the DTO with .Select(...), so EF Core only asks Postgres for the columns actually needed, not the whole entity graph.

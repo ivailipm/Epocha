@@ -12,7 +12,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-epocha}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-epocha_dev_password}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      # Bound to localhost only: reachable from this machine (useful for local dev and for
+      # `psql`/tools run directly on a server), never from the network or the public internet.
+      # Other containers in this compose file reach it via the service name regardless.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -34,7 +37,9 @@ services:
       xpack.security.http.ssl.enabled: "false"
       ES_JAVA_OPTS: "-Xms512m -Xmx512m"
     ports:
-      - "${ELASTIC_PORT:-9200}:9200"
+      # Localhost-only, same reasoning as Postgres above — this instance has security
+      # disabled, which is only safe because nothing outside this machine can reach it.
+      - "127.0.0.1:${ELASTIC_PORT:-9200}:9200"
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
     healthcheck:
@@ -103,7 +108,7 @@ services:
     environment:
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
     ports:
-      - "5601:5601"
+      - "127.0.0.1:5601:5601"
 
 volumes:
   postgres-data:
