@@ -47,4 +47,9 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+// Deliberately shallow: confirms the process can respond, not that Postgres/Elasticsearch are
+// reachable, so a brief dependency hiccup doesn't make a host's deploy health check fail the
+// whole rollout.
+app.MapGet("/health", () => Results.Ok());
+
 app.Run();

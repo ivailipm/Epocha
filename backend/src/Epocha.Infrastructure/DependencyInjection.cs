@@ -1,4 +1,5 @@
 using Elastic.Clients.Elasticsearch;
+using Elastic.Transport;
 using Epocha.Application.Abstractions;
 using Epocha.Application.Auth;
 using Epocha.Application.Images;
@@ -44,8 +45,21 @@ public static class DependencyInjection
         var elasticUrl = configuration["Elasticsearch:Url"]
             ?? throw new InvalidOperationException("Setting 'Elasticsearch:Url' is not configured.");
 
+        var elasticSettings = new ElasticsearchClientSettings(new Uri(elasticUrl));
+
+        // Local Elasticsearch runs with security disabled (see docker-compose.yml); a hosted
+        // instance (e.g. Bonsai) requires basic auth, supplied here rather than embedded in the
+        // URL so the same settings work whether or not credentials are configured.
+        var elasticUsername = configuration["Elasticsearch:Username"];
+        if (!string.IsNullOrEmpty(elasticUsername))
+        {
+            var elasticPassword = configuration["Elasticsearch:Password"]
+                ?? throw new InvalidOperationException("Setting 'Elasticsearch:Username' is configured but 'Elasticsearch:Password' is not.");
+            elasticSettings = elasticSettings.Authentication(new BasicAuthentication(elasticUsername, elasticPassword));
+        }
+
         // The client is thread-safe and pools connections, so one instance serves the whole app.
-        services.AddSingleton(new ElasticsearchClient(new Uri(elasticUrl)));
+        services.AddSingleton(new ElasticsearchClient(elasticSettings));
         services.AddScoped<IArtworkSearchIndexer, ElasticArtworkSearchIndexer>();
         services.AddScoped<IArtworkSearcher, ElasticArtworkSearcher>();
 
